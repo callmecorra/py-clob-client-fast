@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-import requests
+import httpx
 
 from py_clob_client.clob_types import (
     TradeParams,
@@ -20,7 +20,7 @@ from py_clob_client.http_helpers.helpers import (
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
     add_orders_scoring_params_to_url,
-    set_session,
+    set_client,
 )
 from py_clob_client.http_helpers import helpers as helpers_module
 
@@ -121,36 +121,41 @@ class TestHelpers(TestCase):
         self.assertEqual(url, "http://tracker?order_ids=0x0,0x1,0x2")
 
 
-class TestSetSession(TestCase):
+class TestSetClient(TestCase):
     def tearDown(self):
-        # Reset global session after each test
-        set_session(None)
+        # Reset global client after each test
+        set_client(None)
 
-    def test_set_session_sets_global_session(self):
-        """set_session should update the global _SESSION variable."""
-        self.assertIsNone(helpers_module._SESSION)
+    def test_set_client_sets_global_client(self):
+        """set_client should update the global _CLIENT variable."""
+        self.assertIsNone(helpers_module._CLIENT)
 
-        session = requests.Session()
-        set_session(session)
+        client = httpx.Client()
+        set_client(client)
 
-        self.assertIs(helpers_module._SESSION, session)
+        self.assertIs(helpers_module._CLIENT, client)
+        client.close()
 
-    def test_set_session_can_be_replaced(self):
-        """set_session should allow replacing an existing session."""
-        session1 = requests.Session()
-        session2 = requests.Session()
+    def test_set_client_can_be_replaced(self):
+        """set_client should allow replacing an existing client."""
+        client1 = httpx.Client()
+        client2 = httpx.Client()
 
-        set_session(session1)
-        self.assertIs(helpers_module._SESSION, session1)
+        set_client(client1)
+        self.assertIs(helpers_module._CLIENT, client1)
 
-        set_session(session2)
-        self.assertIs(helpers_module._SESSION, session2)
+        set_client(client2)
+        self.assertIs(helpers_module._CLIENT, client2)
 
-    def test_set_session_can_be_cleared(self):
-        """set_session(None) should clear the global session."""
-        session = requests.Session()
-        set_session(session)
-        self.assertIs(helpers_module._SESSION, session)
+        client1.close()
+        client2.close()
 
-        set_session(None)
-        self.assertIsNone(helpers_module._SESSION)
+    def test_set_client_can_be_cleared(self):
+        """set_client(None) should clear the global client."""
+        client = httpx.Client()
+        set_client(client)
+        self.assertIs(helpers_module._CLIENT, client)
+
+        set_client(None)
+        self.assertIsNone(helpers_module._CLIENT)
+        client.close()
