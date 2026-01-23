@@ -1,4 +1,7 @@
 from unittest import TestCase
+
+import requests
+
 from py_clob_client.clob_types import (
     TradeParams,
     OpenOrderParams,
@@ -17,7 +20,9 @@ from py_clob_client.http_helpers.helpers import (
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
     add_orders_scoring_params_to_url,
+    set_session,
 )
+from py_clob_client.http_helpers import helpers as helpers_module
 
 
 class TestHelpers(TestCase):
@@ -114,3 +119,38 @@ class TestHelpers(TestCase):
         )
         self.assertIsNotNone(url)
         self.assertEqual(url, "http://tracker?order_ids=0x0,0x1,0x2")
+
+
+class TestSetSession(TestCase):
+    def tearDown(self):
+        # Reset global session after each test
+        set_session(None)
+
+    def test_set_session_sets_global_session(self):
+        """set_session should update the global _SESSION variable."""
+        self.assertIsNone(helpers_module._SESSION)
+
+        session = requests.Session()
+        set_session(session)
+
+        self.assertIs(helpers_module._SESSION, session)
+
+    def test_set_session_can_be_replaced(self):
+        """set_session should allow replacing an existing session."""
+        session1 = requests.Session()
+        session2 = requests.Session()
+
+        set_session(session1)
+        self.assertIs(helpers_module._SESSION, session1)
+
+        set_session(session2)
+        self.assertIs(helpers_module._SESSION, session2)
+
+    def test_set_session_can_be_cleared(self):
+        """set_session(None) should clear the global session."""
+        session = requests.Session()
+        set_session(session)
+        self.assertIs(helpers_module._SESSION, session)
+
+        set_session(None)
+        self.assertIsNone(helpers_module._SESSION)

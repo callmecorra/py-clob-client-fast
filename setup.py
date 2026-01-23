@@ -4,13 +4,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="py_clob_client",
+    name="py-clob-client-fast",
     version="0.34.5",
     author="Polymarket Engineering",
     author_email="engineering@polymarket.com",
     maintainer="Polymarket Engineering",
     maintainer_email="engineering@polymarket.com",
-    description="Python client for the Polymarket CLOB",
+    description="Python client for the Polymarket CLOB (fast fork with session support)",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Polymarket/py-clob-client",
@@ -22,6 +22,7 @@ setuptools.setup(
         "python-dotenv",
         "py-builder-signing-sdk>=0.0.2",
         "httpx[http2]>=0.27.0",
+        "requests>=2.28.0",
     ],
     project_urls={
         "Bug Tracker": "https://github.com/Polymarket/py-clob-client/issues",
