@@ -1,4 +1,5 @@
 import httpx
+import requests
 
 from py_clob_client.clob_types import (
     DropNotificationParams,
@@ -19,6 +20,20 @@ PUT = "PUT"
 _http_client = httpx.Client(http2=True)
 
 
+# ---- Session support ----
+# Allow consumers to provide a pre-configured requests.Session.
+# Call set_session(session) once and all outgoing HTTP calls from this module will use it.
+_SESSION = None
+
+def set_session(session):
+    """
+    Set a global requests-like session (must expose .request(method, url, **kwargs)).
+    Pass a requests.Session() or a compatible object.
+    """
+    global _SESSION
+    _SESSION = session
+
+
 def overloadHeaders(method: str, headers: dict) -> dict:
     if headers is None:
         headers = dict()
@@ -33,38 +48,27 @@ def overloadHeaders(method: str, headers: dict) -> dict:
 
     return headers
 
-
 def request(endpoint: str, method: str, headers=None, data=None):
+
     try:
         headers = overloadHeaders(method, headers)
-        if isinstance(data, str):
-            # Pre-serialized body: send exact bytes
-            resp = _http_client.request(
-                method=method,
-                url=endpoint,
-                headers=headers,
-                content=data.encode("utf-8"),
-            )
-        else:
-            resp = _http_client.request(
-                method=method,
-                url=endpoint,
-                headers=headers,
-                json=data,
-            )
+        # Use provided session if available; otherwise fall back to requests module
+        sess = _SESSION or requests
+        resp = sess.request(
+            method=method, url=endpoint, headers=headers, json=data if data else None
+        )
 
         if resp.status_code != 200:
             raise PolyApiException(resp)
 
         try:
             return resp.json()
-        except ValueError:
+        except requests.JSONDecodeError:
             return resp.text
 
-    except httpx.RequestError:
+    except requests.RequestException:
         raise PolyApiException(error_msg="Request exception!")
-
-
+    
 def post(endpoint, headers=None, data=None):
     return request(endpoint, POST, headers, data)
 

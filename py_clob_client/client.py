@@ -1,6 +1,8 @@
 import logging
 import json
 from typing import Optional
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from py_builder_signing_sdk.config import BuilderConfig
 
@@ -91,6 +93,7 @@ from .http_helpers.helpers import (
     drop_notifications_query_params,
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
+    set_session,
 )
 
 from .constants import (
@@ -140,6 +143,29 @@ class ClobClient:
         self.signer = Signer(key, chain_id) if key else None
         self.creds = creds
         self.mode = self._get_client_mode()
+
+        # -------------------
+        # SESSION 
+        # -------------------
+
+        self.SESSION = requests.Session()
+        retries = Retry(
+            total=20,
+            backoff_factor=0.2,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+        )
+
+        self.SESSION.mount("https://", HTTPAdapter(max_retries=retries))
+        self.SESSION.mount("http://", HTTPAdapter(max_retries=retries))
+
+
+        set_session(self.SESSION)
+        self.URL_SINGLE_CLOB = "https://clob.polymarket.com/book"
+        self.URL_MULTI_CLOB = "https://clob.polymarket.com/books"
+        self.MAX_TRIALS = 20
+        self.SLEEP_TIME = 0.5
+        #------------------------
 
         if self.signer:
             self.builder = OrderBuilder(
