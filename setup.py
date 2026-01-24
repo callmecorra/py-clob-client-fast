@@ -5,15 +5,15 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="py-clob-client-fast",
-    version="0.34.5",
+    version="0.34.5.post1",          
     author="Polymarket Engineering",
     author_email="engineering@polymarket.com",
     maintainer="Polymarket Engineering",
     maintainer_email="engineering@polymarket.com",
-    description="Python client for the Polymarket CLOB (fast fork with session support)",
+    description="Python client for the Polymarket CLOB (fast fork)",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Polymarket/py-clob-client",
+    url="https://github.com/<YOUR_GH_USER_OR_ORG>/py-clob-client-fast",
     install_requires=[
         "eth-account>=0.13.0",
         "eth-utils>=4.1.1",
@@ -25,13 +25,14 @@ setuptools.setup(
         "requests>=2.28.0",
     ],
     project_urls={
-        "Bug Tracker": "https://github.com/Polymarket/py-clob-client/issues",
+        "Bug Tracker": "https://github.com/<YOUR_GH_USER_OR_ORG>/py-clob-client-fast/issues",
+        "Upstream": "https://github.com/Polymarket/py-clob-client",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(),  # will include py_clob_client_fast
     python_requires=">=3.9.10",
 )
