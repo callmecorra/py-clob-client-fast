@@ -96,10 +96,16 @@ def request(endpoint: str, method: str, headers=None, data=None):
         headers = overloadHeaders(method, headers)
         # Use provided client if available; otherwise use default HTTP/2 client
         client = _CLIENT or _get_default_client()
-        resp = client.request(
-            method=method, url=endpoint, headers=headers, json=data if data else None
-        )
-
+        
+        if data is not None and isinstance(data, str):
+            # Data is already serialized - send as raw content
+            resp = client.request(method=method, url=endpoint, headers=headers, 
+                                content=data.encode('utf-8'))
+        else:
+            # Data is a dict - let httpx serialize it
+            resp = client.request(method=method, url=endpoint, headers=headers, 
+                                json=data if data else None)
+            
         if resp.status_code != 200:
             raise PolyApiException(resp)
 
