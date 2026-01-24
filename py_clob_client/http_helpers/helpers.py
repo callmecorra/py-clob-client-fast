@@ -44,16 +44,6 @@ def set_client(client: httpx.Client):
     global _CLIENT
     _CLIENT = client
 
-
-# Backward compatibility alias
-def set_session(session):
-    """
-    Deprecated: Use set_client() instead.
-    Kept for backward compatibility - accepts httpx.Client.
-    """
-    set_client(session)
-
-
 def overloadHeaders(method: str, headers: dict) -> dict:
     if headers is None:
         headers = dict()
