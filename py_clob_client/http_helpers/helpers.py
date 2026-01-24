@@ -1,5 +1,6 @@
+import json
+
 import httpx
-import requests
 
 from py_clob_client.clob_types import (
     DropNotificationParams,
@@ -17,21 +18,40 @@ POST = "POST"
 DELETE = "DELETE"
 PUT = "PUT"
 
-_http_client = httpx.Client(http2=True)
+# Default HTTP/2 client - used when no custom client is provided
+_default_client: httpx.Client = None
 
 
-# ---- Session support ----
-# Allow consumers to provide a pre-configured requests.Session.
-# Call set_session(session) once and all outgoing HTTP calls from this module will use it.
-_SESSION = None
+def _get_default_client() -> httpx.Client:
+    """Lazily initialize the default httpx client with HTTP/2 support."""
+    global _default_client
+    if _default_client is None:
+        _default_client = httpx.Client(http2=True)
+    return _default_client
 
+
+# ---- Client support ----
+# Allow consumers to provide a pre-configured httpx.Client.
+# Call set_client(client) once and all outgoing HTTP calls from this module will use it.
+_CLIENT: httpx.Client = None
+
+
+def set_client(client: httpx.Client):
+    """
+    Set a global httpx.Client for all outgoing HTTP calls.
+    Pass an httpx.Client instance configured as desired.
+    """
+    global _CLIENT
+    _CLIENT = client
+
+
+# Backward compatibility alias
 def set_session(session):
     """
-    Set a global requests-like session (must expose .request(method, url, **kwargs)).
-    Pass a requests.Session() or a compatible object.
+    Deprecated: Use set_client() instead.
+    Kept for backward compatibility - accepts httpx.Client.
     """
-    global _SESSION
-    _SESSION = session
+    set_client(session)
 
 
 def overloadHeaders(method: str, headers: dict) -> dict:
@@ -52,9 +72,9 @@ def request(endpoint: str, method: str, headers=None, data=None):
 
     try:
         headers = overloadHeaders(method, headers)
-        # Use provided session if available; otherwise fall back to requests module
-        sess = _SESSION or requests
-        resp = sess.request(
+        # Use provided client if available; otherwise use default HTTP/2 client
+        client = _CLIENT or _get_default_client()
+        resp = client.request(
             method=method, url=endpoint, headers=headers, json=data if data else None
         )
 
@@ -63,10 +83,10 @@ def request(endpoint: str, method: str, headers=None, data=None):
 
         try:
             return resp.json()
-        except requests.JSONDecodeError:
+        except json.JSONDecodeError:
             return resp.text
 
-    except requests.RequestException:
+    except httpx.RequestError:
         raise PolyApiException(error_msg="Request exception!")
     
 def post(endpoint, headers=None, data=None):

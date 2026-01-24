@@ -2,9 +2,7 @@ import logging
 import json
 from typing import Optional
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import httpx
 
 from py_builder_signing_sdk.config import BuilderConfig
 
@@ -95,7 +93,7 @@ from .http_helpers.helpers import (
     drop_notifications_query_params,
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
-    set_session,
+    set_client,
 )
 
 from .constants import (
@@ -147,22 +145,22 @@ class ClobClient:
         self.mode = self._get_client_mode()
 
         # -------------------
-        # SESSION 
+        # HTTP CLIENT (HTTP/2)
         # -------------------
 
-        self.SESSION = requests.Session()
-        retries = Retry(
-            total=20,
-            backoff_factor=0.2,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+        # Configure transport with retries
+        transport = httpx.HTTPTransport(
+            retries=5,  # httpx retries on connection errors only
+            http2=True,
         )
 
-        self.SESSION.mount("https://", HTTPAdapter(max_retries=retries))
-        self.SESSION.mount("http://", HTTPAdapter(max_retries=retries))
+        self.client = httpx.Client(
+            transport=transport,
+            http2=True,
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
 
-
-        set_session(self.SESSION)
+        set_client(self.client)
         self.URL_SINGLE_CLOB = "https://clob.polymarket.com/book"
         self.URL_MULTI_CLOB = "https://clob.polymarket.com/books"
         self.MAX_TRIALS = 20
