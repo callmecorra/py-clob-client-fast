@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 import httpx
 
@@ -36,13 +37,44 @@ def _get_default_client() -> httpx.Client:
 _CLIENT: httpx.Client = None
 
 
-def set_client(client: httpx.Client):
+def set_client(client: Optional[httpx.Client]):
     """
     Set a global httpx.Client for all outgoing HTTP calls.
-    Pass an httpx.Client instance configured as desired.
+
+    Args:
+        client: An httpx.Client instance configured as desired,
+                or None to clear and fall back to the default HTTP/2 client.
     """
     global _CLIENT
     _CLIENT = client
+
+
+def warm_connection(base_url: str) -> None:
+    """
+    Pre-establish HTTP connection to reduce first-request latency.
+
+    This sends a lightweight HEAD request to the server to establish
+    the TCP connection and complete TLS handshake before actual API calls.
+    HTTP/2 connection setup is also completed, enabling multiplexed requests.
+
+    Args:
+        base_url: The base URL of the API server (e.g., "https://clob.polymarket.com").
+
+    Example:
+        >>> from py_clob_client.http_helpers.helpers import warm_connection
+        >>> warm_connection("https://clob.polymarket.com")
+    """
+    client = _CLIENT or _get_default_client()
+    try:
+        # Use HEAD request - minimal payload, just establishes connection
+        client.head(base_url, timeout=10.0)
+    except httpx.RequestError:
+        # Connection warming is best-effort; don't fail if server doesn't support HEAD
+        try:
+            # Fallback to GET on a lightweight endpoint
+            client.get(f"{base_url}/time", timeout=10.0)
+        except httpx.RequestError:
+            pass  # Best effort - connection may still be partially warmed
 
 def overloadHeaders(method: str, headers: dict) -> dict:
     if headers is None:
