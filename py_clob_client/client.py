@@ -94,6 +94,7 @@ from .http_helpers.helpers import (
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
     set_client,
+    warm_connection as _warm_connection,
 )
 
 from .constants import (
@@ -229,6 +230,21 @@ class ClobClient:
         Does not need authentication
         """
         return get("{}{}".format(self.host, TIME))
+
+    def warm_connection(self) -> None:
+        """
+        Pre-establish HTTP connection to reduce first-request latency.
+
+        Call this method after creating the client to establish the TCP connection
+        and complete TLS/HTTP/2 handshake before making actual API calls.
+        This eliminates the connection setup overhead from the first real request.
+
+        Example:
+            >>> client = ClobClient("https://clob.polymarket.com")
+            >>> client.warm_connection()  # Establishes connection
+            >>> client.get_order_book(...)  # First real call is faster
+        """
+        _warm_connection(self.host)
 
     def create_api_key(self, nonce: int = None) -> ApiCreds:
         """

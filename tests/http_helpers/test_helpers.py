@@ -1,4 +1,5 @@
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 
 import httpx
 
@@ -21,6 +22,7 @@ from py_clob_client.http_helpers.helpers import (
     add_order_scoring_params_to_url,
     add_orders_scoring_params_to_url,
     set_client,
+    warm_connection,
 )
 from py_clob_client.http_helpers import helpers as helpers_module
 
@@ -159,3 +161,56 @@ class TestSetClient(TestCase):
         set_client(None)
         self.assertIsNone(helpers_module._CLIENT)
         client.close()
+
+
+class TestWarmConnection(TestCase):
+    def tearDown(self):
+        # Reset global client after each test
+        set_client(None)
+
+    def test_warm_connection_uses_head_request(self):
+        """warm_connection should use HEAD request to establish connection."""
+        mock_client = MagicMock(spec=httpx.Client)
+        set_client(mock_client)
+
+        warm_connection("https://example.com")
+
+        mock_client.head.assert_called_once_with("https://example.com", timeout=10.0)
+
+    def test_warm_connection_falls_back_to_get_on_head_failure(self):
+        """warm_connection should fall back to GET /time if HEAD fails."""
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.head.side_effect = httpx.RequestError("Connection failed")
+        set_client(mock_client)
+
+        warm_connection("https://example.com")
+
+        mock_client.head.assert_called_once_with("https://example.com", timeout=10.0)
+        mock_client.get.assert_called_once_with(
+            "https://example.com/time", timeout=10.0
+        )
+
+    def test_warm_connection_silent_on_complete_failure(self):
+        """warm_connection should not raise if both HEAD and GET fail."""
+        mock_client = MagicMock(spec=httpx.Client)
+        mock_client.head.side_effect = httpx.RequestError("HEAD failed")
+        mock_client.get.side_effect = httpx.RequestError("GET failed")
+        set_client(mock_client)
+
+        # Should not raise
+        warm_connection("https://example.com")
+
+    def test_warm_connection_uses_default_client_when_no_custom_client(self):
+        """warm_connection should use default client when _CLIENT is None."""
+        set_client(None)
+
+        with patch.object(helpers_module, "_get_default_client") as mock_get_default:
+            mock_default_client = MagicMock(spec=httpx.Client)
+            mock_get_default.return_value = mock_default_client
+
+            warm_connection("https://example.com")
+
+            mock_get_default.assert_called_once()
+            mock_default_client.head.assert_called_once_with(
+                "https://example.com", timeout=10.0
+            )
