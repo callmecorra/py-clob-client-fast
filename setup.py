@@ -22,6 +22,7 @@ setuptools.setup(
         "python-dotenv",
         "py-builder-signing-sdk>=0.0.2",
         "httpx[http2]>=0.27.0",
+        "requests>=2.28.0",
     ],
     project_urls={
         "Bug Tracker": "https://github.com/<YOUR_GH_USER_OR_ORG>/py-clob-client-fast/issues",

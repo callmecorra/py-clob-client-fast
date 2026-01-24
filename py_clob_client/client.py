@@ -2,6 +2,8 @@ import logging
 import json
 from typing import Optional
 
+import httpx
+
 from py_builder_signing_sdk.config import BuilderConfig
 
 from .order_builder.builder import OrderBuilder
@@ -91,6 +93,7 @@ from .http_helpers.helpers import (
     drop_notifications_query_params,
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
+    set_client,
 )
 
 from .constants import (
@@ -140,6 +143,29 @@ class ClobClient:
         self.signer = Signer(key, chain_id) if key else None
         self.creds = creds
         self.mode = self._get_client_mode()
+
+        # -------------------
+        # HTTP CLIENT (HTTP/2)
+        # -------------------
+
+        # Configure transport with retries
+        transport = httpx.HTTPTransport(
+            retries=5,  # httpx retries on connection errors only
+            http2=True,
+        )
+
+        self.client = httpx.Client(
+            transport=transport,
+            http2=True,
+            timeout=httpx.Timeout(30.0, connect=10.0),
+        )
+
+        set_client(self.client)
+        self.URL_SINGLE_CLOB = "https://clob.polymarket.com/book"
+        self.URL_MULTI_CLOB = "https://clob.polymarket.com/books"
+        self.MAX_TRIALS = 20
+        self.SLEEP_TIME = 0.5
+        #------------------------
 
         if self.signer:
             self.builder = OrderBuilder(

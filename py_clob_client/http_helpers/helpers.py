@@ -1,3 +1,5 @@
+import json
+
 import httpx
 
 from py_clob_client.clob_types import (
@@ -16,8 +18,31 @@ POST = "POST"
 DELETE = "DELETE"
 PUT = "PUT"
 
-_http_client = httpx.Client(http2=True)
+# Default HTTP/2 client - used when no custom client is provided
+_default_client: httpx.Client = None
 
+
+def _get_default_client() -> httpx.Client:
+    """Lazily initialize the default httpx client with HTTP/2 support."""
+    global _default_client
+    if _default_client is None:
+        _default_client = httpx.Client(http2=True)
+    return _default_client
+
+
+# ---- Client support ----
+# Allow consumers to provide a pre-configured httpx.Client.
+# Call set_client(client) once and all outgoing HTTP calls from this module will use it.
+_CLIENT: httpx.Client = None
+
+
+def set_client(client: httpx.Client):
+    """
+    Set a global httpx.Client for all outgoing HTTP calls.
+    Pass an httpx.Client instance configured as desired.
+    """
+    global _CLIENT
+    _CLIENT = client
 
 def overloadHeaders(method: str, headers: dict) -> dict:
     if headers is None:
@@ -33,38 +58,27 @@ def overloadHeaders(method: str, headers: dict) -> dict:
 
     return headers
 
-
 def request(endpoint: str, method: str, headers=None, data=None):
+
     try:
         headers = overloadHeaders(method, headers)
-        if isinstance(data, str):
-            # Pre-serialized body: send exact bytes
-            resp = _http_client.request(
-                method=method,
-                url=endpoint,
-                headers=headers,
-                content=data.encode("utf-8"),
-            )
-        else:
-            resp = _http_client.request(
-                method=method,
-                url=endpoint,
-                headers=headers,
-                json=data,
-            )
+        # Use provided client if available; otherwise use default HTTP/2 client
+        client = _CLIENT or _get_default_client()
+        resp = client.request(
+            method=method, url=endpoint, headers=headers, json=data if data else None
+        )
 
         if resp.status_code != 200:
             raise PolyApiException(resp)
 
         try:
             return resp.json()
-        except ValueError:
+        except json.JSONDecodeError:
             return resp.text
 
     except httpx.RequestError:
         raise PolyApiException(error_msg="Request exception!")
-
-
+    
 def post(endpoint, headers=None, data=None):
     return request(endpoint, POST, headers, data)
 

@@ -1,4 +1,7 @@
 from unittest import TestCase
+
+import httpx
+
 from py_clob_client.clob_types import (
     TradeParams,
     OpenOrderParams,
@@ -17,7 +20,9 @@ from py_clob_client.http_helpers.helpers import (
     add_balance_allowance_params_to_url,
     add_order_scoring_params_to_url,
     add_orders_scoring_params_to_url,
+    set_client,
 )
+from py_clob_client.http_helpers import helpers as helpers_module
 
 
 class TestHelpers(TestCase):
@@ -114,3 +119,43 @@ class TestHelpers(TestCase):
         )
         self.assertIsNotNone(url)
         self.assertEqual(url, "http://tracker?order_ids=0x0,0x1,0x2")
+
+
+class TestSetClient(TestCase):
+    def tearDown(self):
+        # Reset global client after each test
+        set_client(None)
+
+    def test_set_client_sets_global_client(self):
+        """set_client should update the global _CLIENT variable."""
+        self.assertIsNone(helpers_module._CLIENT)
+
+        client = httpx.Client()
+        set_client(client)
+
+        self.assertIs(helpers_module._CLIENT, client)
+        client.close()
+
+    def test_set_client_can_be_replaced(self):
+        """set_client should allow replacing an existing client."""
+        client1 = httpx.Client()
+        client2 = httpx.Client()
+
+        set_client(client1)
+        self.assertIs(helpers_module._CLIENT, client1)
+
+        set_client(client2)
+        self.assertIs(helpers_module._CLIENT, client2)
+
+        client1.close()
+        client2.close()
+
+    def test_set_client_can_be_cleared(self):
+        """set_client(None) should clear the global client."""
+        client = httpx.Client()
+        set_client(client)
+        self.assertIs(helpers_module._CLIENT, client)
+
+        set_client(None)
+        self.assertIsNone(helpers_module._CLIENT)
+        client.close()
